@@ -12,7 +12,7 @@ import { plannerQueryString } from "@/lib/planner/query"
 
 export default function PlannerOverviewPage() {
   const { draftQuery, query, isReady } = usePlannerQuery()
-  const { year, score, opportunities, loading } = usePlannerOptimizer()
+  const { year, score, opportunities, recommendationSets, loading } = usePlannerOptimizer()
 
   if (!isReady || !query) {
     return <PlannerQueryRequired query={draftQuery} />
@@ -31,12 +31,17 @@ export default function PlannerOverviewPage() {
             <p>State: {query.state}</p>
             <p>Year: {query.year}</p>
             <p>Suggestions found: {opportunities.length}</p>
+            <p>Budget plans found: {recommendationSets.length}</p>
             <p>Status: {loading ? "Calculating..." : "Ready"}</p>
           </CardContent>
         </Card>
       </div>
 
-      <OpportunitiesList opportunities={opportunities.slice(0, 4)} year={year ?? query.year} />
+      <OpportunitiesList
+        opportunities={opportunities.slice(0, 4)}
+        recommendationSets={recommendationSets.slice(0, 3)}
+        year={year ?? query.year}
+      />
 
       <div className="flex flex-wrap gap-2">
         <Link href={`/planner/opportunities?${plannerQueryString(query)}`} className="rounded-md border px-3 py-2 text-sm">

@@ -17,6 +17,7 @@ export async function GET(request: Request) {
     year: payload.year,
     annualLeaveBudget: payload.annualLeaveBudget,
     opportunities: payload.opportunities,
+    recommendationSets: payload.recommendationSets,
   }, {
     headers: {
       "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",

@@ -31,9 +31,21 @@ export interface LeaveOpportunity {
   reason: string
 }
 
+export interface LeaveRecommendationSet {
+  id: string
+  opportunityIndexes: number[]
+  leaveDates: string[]
+  totalLeaveDays: number
+  totalBreakDays: number
+  efficiencyScore: number
+  utilizationPercent: number
+  exactBudgetMatch: boolean
+}
+
 export interface OptimizationResult {
   state: MalaysianStateCode
   opportunities: LeaveOpportunity[]
+  recommendationSets: LeaveRecommendationSet[]
 }
 
 export interface PlannerCalendarDay {
@@ -55,6 +67,10 @@ export interface PlannerCalendarOpportunity extends LeaveOpportunity {
   id: string
 }
 
+export interface PlannerCalendarRecommendationSet extends Omit<LeaveRecommendationSet, "opportunityIndexes"> {
+  opportunityIds: string[]
+}
+
 export interface PlannerCalendarResponse {
   meta: {
     state: MalaysianStateCode
@@ -65,6 +81,7 @@ export interface PlannerCalendarResponse {
   }
   calendarDays: PlannerCalendarDay[]
   opportunities: PlannerCalendarOpportunity[]
+  recommendationSets: PlannerCalendarRecommendationSet[]
   legend: {
     weekend: string
     holiday: string

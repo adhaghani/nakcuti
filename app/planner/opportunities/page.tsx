@@ -33,6 +33,7 @@ export default function PlannerOpportunitiesPage() {
 
   const annualLeaveBudget = query.annualLeaveBudget
   const queryYear = query.year
+  const primaryRecommendation = data?.recommendationSets[0] ?? null
 
   const constrainedSelectedDates = useMemo(() => {
     if (annualLeaveBudget <= 0) {
@@ -111,6 +112,14 @@ export default function PlannerOpportunitiesPage() {
         {annualLeaveBudget > 0 && budgetExhausted ? " (Budget limit reached.)" : ""}
       </p>
 
+      {primaryRecommendation ? (
+        <p className="text-sm text-muted-foreground">
+          Suggested plan uses {primaryRecommendation.totalLeaveDays}/{annualLeaveBudget} day
+          {annualLeaveBudget === 1 ? "" : "s"} ({primaryRecommendation.utilizationPercent}% utilization)
+          {primaryRecommendation.exactBudgetMatch ? ". Exact budget match." : ". Best-effort coverage."}
+        </p>
+      ) : null}
+
       {viewMode === "month" ? (
         <div className="grid gap-4 lg:grid-cols-3">
           <div className="lg:col-span-2">
@@ -129,7 +138,11 @@ export default function PlannerOpportunitiesPage() {
           />
         </div>
       ) : (
-        <OpportunitiesList opportunities={data.opportunities} year={data.meta.year} />
+        <OpportunitiesList
+          opportunities={data.opportunities}
+          recommendationSets={data.recommendationSets}
+          year={data.meta.year}
+        />
       )}
     </section>
   )

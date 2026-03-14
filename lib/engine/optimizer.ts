@@ -3,6 +3,7 @@ import { addDays, eachDayOfInterval, format, parseISO } from "date-fns"
 import type {
   CalendarDay,
   LeaveOpportunity,
+  LeaveRecommendationSet,
   OptimizationResult,
   PublicHoliday,
 } from "@/lib/domain/holidays"
@@ -136,6 +137,147 @@ function applyAnnualLeaveBudget(opportunities: LeaveOpportunity[], annualLeaveBu
   return eligible.slice(0, maxSuggestions)
 }
 
+interface RecommendationDraft {
+  opportunityIndexes: number[]
+  leaveDateSet: Set<string>
+  breakDateSet: Set<string>
+}
+
+function buildBreakDateSet(opportunity: LeaveOpportunity): Set<string> {
+  return new Set(
+    eachDayOfInterval({
+      start: parseISO(opportunity.startDate),
+      end: parseISO(opportunity.endDate),
+    }).map((day) => format(day, "yyyy-MM-dd")),
+  )
+}
+
+function compareDrafts(a: LeaveRecommendationSet, b: LeaveRecommendationSet): number {
+  if (a.exactBudgetMatch !== b.exactBudgetMatch) {
+    return a.exactBudgetMatch ? -1 : 1
+  }
+
+  if (b.totalBreakDays !== a.totalBreakDays) {
+    return b.totalBreakDays - a.totalBreakDays
+  }
+
+  if (b.utilizationPercent !== a.utilizationPercent) {
+    return b.utilizationPercent - a.utilizationPercent
+  }
+
+  if (b.efficiencyScore !== a.efficiencyScore) {
+    return b.efficiencyScore - a.efficiencyScore
+  }
+
+  return a.leaveDates.join(",").localeCompare(b.leaveDates.join(","))
+}
+
+function toRecommendationSet(
+  draft: RecommendationDraft,
+  annualLeaveBudget: number,
+  id: string,
+): LeaveRecommendationSet {
+  const leaveDates = Array.from(draft.leaveDateSet).sort((a, b) => a.localeCompare(b))
+  const totalLeaveDays = leaveDates.length
+  const totalBreakDays = draft.breakDateSet.size
+  const efficiency = totalLeaveDays > 0 ? totalBreakDays / totalLeaveDays : 0
+  const utilization = annualLeaveBudget > 0 ? (totalLeaveDays / annualLeaveBudget) * 100 : 0
+
+  return {
+    id,
+    opportunityIndexes: [...draft.opportunityIndexes].sort((a, b) => a - b),
+    leaveDates,
+    totalLeaveDays,
+    totalBreakDays,
+    efficiencyScore: Number(efficiency.toFixed(2)),
+    utilizationPercent: Number(Math.min(100, utilization).toFixed(1)),
+    exactBudgetMatch: annualLeaveBudget > 0 && totalLeaveDays === annualLeaveBudget,
+  }
+}
+
+function buildRecommendationSets(opportunities: LeaveOpportunity[], annualLeaveBudget: number): LeaveRecommendationSet[] {
+  if (annualLeaveBudget <= 0 || opportunities.length === 0) {
+    return []
+  }
+
+  const candidates = opportunities.slice(0, 18)
+  const candidateBreakSets = candidates.map((opportunity) => buildBreakDateSet(opportunity))
+  const drafts: RecommendationDraft[] = []
+
+  function dfs(
+    index: number,
+    chosenIndexes: number[],
+    leaveDateSet: Set<string>,
+    breakDateSet: Set<string>,
+  ) {
+    if (leaveDateSet.size > annualLeaveBudget) {
+      return
+    }
+
+    if (chosenIndexes.length > 0) {
+      drafts.push({
+        opportunityIndexes: [...chosenIndexes],
+        leaveDateSet: new Set(leaveDateSet),
+        breakDateSet: new Set(breakDateSet),
+      })
+    }
+
+    if (index >= candidates.length || leaveDateSet.size === annualLeaveBudget) {
+      return
+    }
+
+    for (let i = index; i < candidates.length; i += 1) {
+      const opportunity = candidates[i]
+      const nextLeaveDates = new Set(leaveDateSet)
+      let exceedsBudget = false
+
+      for (const leaveDate of opportunity.leaveDays) {
+        nextLeaveDates.add(leaveDate)
+        if (nextLeaveDates.size > annualLeaveBudget) {
+          exceedsBudget = true
+          break
+        }
+      }
+
+      if (exceedsBudget) {
+        continue
+      }
+
+      const nextBreakDates = new Set(breakDateSet)
+      for (const breakDate of candidateBreakSets[i]) {
+        nextBreakDates.add(breakDate)
+      }
+
+      chosenIndexes.push(i)
+      dfs(i + 1, chosenIndexes, nextLeaveDates, nextBreakDates)
+      chosenIndexes.pop()
+    }
+  }
+
+  dfs(0, [], new Set<string>(), new Set<string>())
+
+  const uniqueByLeaveDates = new Map<string, LeaveRecommendationSet>()
+  for (const draft of drafts) {
+    const set = toRecommendationSet(draft, annualLeaveBudget, "")
+    const key = set.leaveDates.join(",")
+    const existing = uniqueByLeaveDates.get(key)
+
+    if (!existing || compareDrafts(set, existing) < 0) {
+      uniqueByLeaveDates.set(key, set)
+    }
+  }
+
+  const allSets = [...uniqueByLeaveDates.values()].sort(compareDrafts)
+  const exact = allSets.filter((set) => set.exactBudgetMatch)
+  const fallback = allSets.filter((set) => !set.exactBudgetMatch)
+  const top = [...exact, ...fallback].slice(0, 3)
+
+  return top.map((set, index) => ({
+    ...set,
+    id: `set-${index + 1}`,
+  }))
+}
+
 export function optimizeLeaveDays(
   state: MalaysianStateCode,
   holidays: PublicHoliday[],
@@ -159,10 +301,12 @@ export function optimizeLeaveDays(
       .slice(0, 24),
     annualLeaveBudget,
   )
+  const recommendationSets = buildRecommendationSets(opportunities, annualLeaveBudget)
 
   return {
     state,
     opportunities,
+    recommendationSets,
   }
 }
 

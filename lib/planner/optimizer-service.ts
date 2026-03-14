@@ -1,6 +1,6 @@
 import { unstable_cache } from "next/cache"
 
-import type { LeaveOpportunity } from "@/lib/domain/holidays"
+import type { LeaveOpportunity, LeaveRecommendationSet } from "@/lib/domain/holidays"
 import { optimizerRequestSchema } from "@/lib/domain/holidays"
 import { MALAYSIAN_STATES, type MalaysianStateCode } from "@/lib/domain/states"
 import { calculateCutiScore, optimizeLeaveDays } from "@/lib/engine/optimizer"
@@ -12,6 +12,7 @@ export interface OptimizerPayload {
   annualLeaveBudget: number
   score: number
   opportunities: LeaveOpportunity[]
+  recommendationSets: LeaveRecommendationSet[]
 }
 
 export function parseOptimizerRequest(searchParams: URLSearchParams) {
@@ -80,6 +81,7 @@ const getOptimizerDataCached = unstable_cache(
       annualLeaveBudget,
       score,
       opportunities: result.opportunities,
+      recommendationSets: result.recommendationSets,
     }
   },
   ["optimizer-payload"],

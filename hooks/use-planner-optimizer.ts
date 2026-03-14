@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react"
 
-import type { LeaveOpportunity } from "@/lib/domain/holidays"
+import type { LeaveOpportunity, LeaveRecommendationSet } from "@/lib/domain/holidays"
 import { usePlannerQuery } from "@/hooks/use-planner-query"
 
 interface PlannerOptimizerState {
   year: number | null
   score: number
   opportunities: LeaveOpportunity[]
+  recommendationSets: LeaveRecommendationSet[]
   loading: boolean
 }
 
@@ -17,6 +18,7 @@ export function usePlannerOptimizer(): PlannerOptimizerState {
   const [year, setYear] = useState<number | null>(null)
   const [score, setScore] = useState(0)
   const [opportunities, setOpportunities] = useState<LeaveOpportunity[]>([])
+  const [recommendationSets, setRecommendationSets] = useState<LeaveRecommendationSet[]>([])
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -25,6 +27,7 @@ export function usePlannerOptimizer(): PlannerOptimizerState {
       setYear(null)
       setScore(0)
       setOpportunities([])
+      setRecommendationSets([])
       return
     }
 
@@ -35,6 +38,7 @@ export function usePlannerOptimizer(): PlannerOptimizerState {
       setYear(null)
       setScore(0)
       setOpportunities([])
+      setRecommendationSets([])
 
       try {
         const response = await fetch(`/api/optimizer/score?${queryString}`, {
@@ -42,16 +46,23 @@ export function usePlannerOptimizer(): PlannerOptimizerState {
         })
 
         if (response.ok) {
-          const payload = (await response.json()) as { year?: number; score?: number; opportunities?: LeaveOpportunity[] }
+          const payload = (await response.json()) as {
+            year?: number
+            score?: number
+            opportunities?: LeaveOpportunity[]
+            recommendationSets?: LeaveRecommendationSet[]
+          }
           setYear(payload.year ?? null)
           setScore(payload.score ?? 0)
           setOpportunities(payload.opportunities ?? [])
+          setRecommendationSets(payload.recommendationSets ?? [])
         }
       } catch (error) {
         if (!(error instanceof DOMException && error.name === "AbortError")) {
           setYear(null)
           setScore(0)
           setOpportunities([])
+          setRecommendationSets([])
         }
       } finally {
         if (!controller.signal.aborted) {
@@ -71,6 +82,7 @@ export function usePlannerOptimizer(): PlannerOptimizerState {
     year,
     score,
     opportunities,
+    recommendationSets,
     loading,
   }
 }

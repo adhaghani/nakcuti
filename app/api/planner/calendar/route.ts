@@ -21,6 +21,13 @@ const getCalendarPayload = unstable_cache(
       ...opportunity,
     }))
 
+    const recommendationSets = optimization.recommendationSets.map((set) => ({
+      ...set,
+      opportunityIds: set.opportunityIndexes
+        .map((index) => opportunities[index]?.id)
+        .filter((id): id is string => Boolean(id)),
+    }))
+
     const recommendedMap = new Map<string, string[]>()
     for (const opportunity of opportunities) {
       for (const leaveDate of opportunity.leaveDays) {
@@ -66,10 +73,11 @@ const getCalendarPayload = unstable_cache(
         year: effectiveYear,
         annualLeaveBudget,
         generatedAt: new Date().toISOString(),
-        dataVersion: "planner-calendar-v1",
+        dataVersion: "planner-calendar-v2",
       },
       calendarDays,
       opportunities,
+      recommendationSets,
       legend: {
         weekend: "Weekend",
         holiday: "Public holiday",
