@@ -7,26 +7,26 @@ Nak Cuti helps Malaysians maximize annual leave by finding sandwich days and lon
 - Next.js App Router dashboard scaffold on `/`.
 - Supabase migration for `public_holidays` with state arrays and replacement metadata.
 - 2026 baseline holiday seed including:
-	- CNY: `2026-02-17` and `2026-02-18`.
-	- Raya Aidilfitri weekend case with replacements.
-	- Hari Raya Haji: `2026-05-27`.
-	- Malaysia Day: `2026-09-16`.
-	- Feb 1 overlap: Thaipusam + FT Day with Monday/Tuesday observed days.
+  - CNY: `2026-02-17` and `2026-02-18`.
+  - Raya Aidilfitri weekend case with replacements.
+  - Hari Raya Haji: `2026-05-27`.
+  - Malaysia Day: `2026-09-16`.
+  - Feb 1 overlap: Thaipusam + FT Day with Monday/Tuesday observed days.
 - TypeScript optimization engine with sandwich-day detection and ranked opportunities.
 - API routes:
-	- `GET /api/optimizer/opportunities`
-	- `GET /api/optimizer/score`
-	- `POST /api/leave-draft`
-	- `POST /api/admin/sync-holidays`
-	- `GET/POST /api/drafts` (authenticated)
+  - `GET /api/optimizer/opportunities`
+  - `GET /api/optimizer/score`
+  - `POST /api/leave-draft`
+  - `POST /api/admin/sync-holidays`
+  - `GET/POST /api/drafts` (authenticated)
 - UI modules:
-	- State selector
-	- Cuti score card
-	- Opportunities list
-	- Leave draft generator (BM/EN, user-selected tone)
-	- Budget travel sync placeholder
-	- Multi-page planner routes with interactive calendar
-	- Auth-aware planner header and settings
+  - State selector
+  - Cuti score card
+  - Opportunities list
+  - Leave draft generator (BM/EN, user-selected tone)
+  - Budget travel sync placeholder
+  - Multi-page planner routes with interactive calendar
+  - Auth-aware planner header and settings
 
 ## Local setup
 
@@ -45,8 +45,8 @@ cp .env.example .env.local
 3. Fill `.env.local` with your Supabase values:
 
 ```env
-NEXT_PUBLIC_SUPABASE_URL=...
-NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_URL=...
+SUPABASE_ANON_KEY=...
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 SUPABASE_SERVICE_ROLE_KEY=...
 HOLIDAY_SYNC_ADMIN_TOKEN=...

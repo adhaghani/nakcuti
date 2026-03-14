@@ -2,12 +2,15 @@ import { unstable_cache } from "next/cache"
 
 import type { PublicHoliday } from "@/lib/domain/holidays"
 import type { MalaysianStateCode } from "@/lib/domain/states"
-import { getHolidayFallbackByYear, getHolidayFallbackYears } from "@/holiday-fallback"
+import {
+  getHolidayFallbackByYear,
+  getHolidayFallbackYears,
+} from "@/holiday-fallback"
 import { getSupabaseServerClient } from "@/lib/supabase/server"
 
 function isHolidayApplicableToState(
   row: { is_national: boolean; affected_states: string[] | null },
-  state: MalaysianStateCode,
+  state: MalaysianStateCode
 ): boolean {
   const affectedStates = row.affected_states ?? []
 
@@ -19,7 +22,10 @@ function isHolidayApplicableToState(
   return row.is_national
 }
 
-function isFallbackHolidayApplicableToState(holiday: PublicHoliday, state: MalaysianStateCode): boolean {
+function isFallbackHolidayApplicableToState(
+  holiday: PublicHoliday,
+  state: MalaysianStateCode
+): boolean {
   if (holiday.affectedStates.length > 0) {
     return holiday.affectedStates.includes(state)
   }
@@ -36,7 +42,10 @@ function getFallbackYearForRequest(requestedYear: number): number | undefined {
   return fallbackYears.at(-1)
 }
 
-function getFallbackHolidaysByStateAndYear(state: MalaysianStateCode, requestedYear: number): PublicHoliday[] | null {
+function getFallbackHolidaysByStateAndYear(
+  state: MalaysianStateCode,
+  requestedYear: number
+): PublicHoliday[] | null {
   const fallbackYear = getFallbackYearForRequest(requestedYear)
   if (fallbackYear === undefined) {
     return null
@@ -54,13 +63,15 @@ function getFallbackHolidaysByStateAndYear(state: MalaysianStateCode, requestedY
 
 export async function listHolidaysByStateAndYear(
   state: MalaysianStateCode,
-  year: number,
+  year: number
 ): Promise<PublicHoliday[]> {
   const supabase = getSupabaseServerClient()
 
   const { data, error } = await supabase
     .from("public_holidays")
-    .select("date,name,is_national,affected_states,kind,replacement_for_date,replacement_reason")
+    .select(
+      "date,name,is_national,affected_states,kind,replacement_for_date,replacement_reason"
+    )
     .eq("year", year)
     .or(`is_national.eq.true,affected_states.cs.{${state}}`)
     .order("date", { ascending: true })
@@ -73,11 +84,13 @@ export async function listHolidaysByStateAndYear(
 
     if (error.message.includes("Expected 3 parts in JWT")) {
       throw new Error(
-        "Unable to query public_holidays and no fallback data available: malformed Supabase anon key. Use ANON_KEY from `supabase status -o env` for NEXT_PUBLIC_SUPABASE_ANON_KEY.",
+        "Unable to query public_holidays and no fallback data available: malformed Supabase anon key. Use ANON_KEY from `supabase status -o env` for SUPABASE_ANON_KEY."
       )
     }
 
-    throw new Error(`Unable to query public_holidays and no fallback data available: ${error.message}`)
+    throw new Error(
+      `Unable to query public_holidays and no fallback data available: ${error.message}`
+    )
   }
 
   // Keep a server-side guard to prevent cross-state data leakage if PostgREST array filtering changes.
@@ -96,7 +109,10 @@ export async function listHolidaysByStateAndYear(
 
 async function listAvailableHolidayYearsUncached(): Promise<number[]> {
   const supabase = getSupabaseServerClient()
-  const { data, error } = await supabase.from("public_holidays").select("year").order("year", { ascending: true })
+  const { data, error } = await supabase
+    .from("public_holidays")
+    .select("year")
+    .order("year", { ascending: true })
 
   if (error) {
     const fallbackYears = getHolidayFallbackYears()
@@ -106,32 +122,36 @@ async function listAvailableHolidayYearsUncached(): Promise<number[]> {
 
     if (error.message.includes("Expected 3 parts in JWT")) {
       throw new Error(
-        "Unable to list available holiday years and no fallback data available: malformed Supabase anon key. Use ANON_KEY from `supabase status -o env` for NEXT_PUBLIC_SUPABASE_ANON_KEY.",
+        "Unable to list available holiday years and no fallback data available: malformed Supabase anon key. Use ANON_KEY from `supabase status -o env` for SUPABASE_ANON_KEY."
       )
     }
 
-    throw new Error(`Unable to list available holiday years and no fallback data available: ${error.message}`)
+    throw new Error(
+      `Unable to list available holiday years and no fallback data available: ${error.message}`
+    )
   }
 
   return Array.from(
     new Set(
       (data ?? [])
         .map((row) => Number(row.year))
-        .filter((year) => Number.isFinite(year) && year >= 1900 && year <= 2100),
-    ),
+        .filter((year) => Number.isFinite(year) && year >= 1900 && year <= 2100)
+    )
   ).sort((a, b) => a - b)
 }
 
 const listAvailableHolidayYearsCached = unstable_cache(
   async () => listAvailableHolidayYearsUncached(),
   ["available-holiday-years"],
-  { revalidate: 3600 },
+  { revalidate: 3600 }
 )
 
 export async function listAvailableHolidayYears(): Promise<number[]> {
   return listAvailableHolidayYearsCached()
 }
 
-export async function resolveRequestedHolidayYear(requestedYear: number): Promise<number> {
+export async function resolveRequestedHolidayYear(
+  requestedYear: number
+): Promise<number> {
   return requestedYear
 }

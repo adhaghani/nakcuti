@@ -15,14 +15,16 @@ export async function middleware(request: NextRequest) {
     return response
   }
 
-  const needsAuth = PROTECTED_PAGE_PREFIXES.some((prefix) => request.nextUrl.pathname.startsWith(prefix))
+  const needsAuth = PROTECTED_PAGE_PREFIXES.some((prefix) =>
+    request.nextUrl.pathname.startsWith(prefix)
+  )
 
   if (!needsAuth) {
     return response
   }
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  const url = process.env.SUPABASE_URL
+  const anonKey = process.env.SUPABASE_ANON_KEY
   if (!url || !anonKey) {
     return response
   }
@@ -52,11 +54,16 @@ export async function middleware(request: NextRequest) {
   const signInUrl = request.nextUrl.clone()
   signInUrl.pathname = "/auth/sign-in"
   signInUrl.search = ""
-  signInUrl.searchParams.set("next", `${request.nextUrl.pathname}${request.nextUrl.search}`)
+  signInUrl.searchParams.set(
+    "next",
+    `${request.nextUrl.pathname}${request.nextUrl.search}`
+  )
 
   return NextResponse.redirect(signInUrl)
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+  ],
 }
