@@ -25,6 +25,12 @@ export async function updateAuthSession(request: NextRequest) {
     },
   })
 
-  await supabase.auth.getUser()
+  try {
+    await supabase.auth.getUser()
+  } catch {
+    // Ignore auth refresh failures when Supabase is unreachable.
+    return NextResponse.next({ request })
+  }
+
   return response
 }

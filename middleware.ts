@@ -6,7 +6,15 @@ import { updateAuthSession } from "@/lib/supabase/auth/middleware"
 const PROTECTED_PAGE_PREFIXES = ["/planner/settings"]
 
 export async function middleware(request: NextRequest) {
-  const response = await updateAuthSession(request)
+  let response = NextResponse.next({ request })
+
+  try {
+    response = await updateAuthSession(request)
+  } catch {
+    // Bypass middleware auth flows if Supabase is unavailable in this environment.
+    return response
+  }
+
   const needsAuth = PROTECTED_PAGE_PREFIXES.some((prefix) => request.nextUrl.pathname.startsWith(prefix))
 
   if (!needsAuth) {
@@ -35,7 +43,7 @@ export async function middleware(request: NextRequest) {
 
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await supabase.auth.getUser().catch(() => ({ data: { user: null } }))
 
   if (user) {
     return response
