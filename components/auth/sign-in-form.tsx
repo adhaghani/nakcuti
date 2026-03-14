@@ -2,12 +2,13 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { sanitizeRedirectTarget } from "@/lib/auth/safe-redirect"
 import { createSupabaseBrowserClient } from "@/lib/supabase/auth/client"
 
@@ -20,9 +21,81 @@ export function SignInForm({ redirectTo }: SignInFormProps) {
   const safeRedirectTo = sanitizeRedirectTarget(redirectTo)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [isServerReachable, setIsServerReachable] = useState(true)
+  const [isCheckingReachability, setIsCheckingReachability] = useState(true)
+  const reachabilityRequestId = useRef(0)
+
+  const checkReachability = useCallback(async () => {
+    const requestId = ++reachabilityRequestId.current
+
+    setIsCheckingReachability(true)
+
+    if (!navigator.onLine) {
+      if (requestId === reachabilityRequestId.current) {
+        setIsServerReachable(false)
+        setIsCheckingReachability(false)
+      }
+
+      return
+    }
+
+    try {
+      const supabase = createSupabaseBrowserClient()
+      const probe = supabase.auth.getSession()
+      const timeout = new Promise<never>((_, reject) => {
+        setTimeout(() => {
+          reject(new Error("Reachability check timed out"))
+        }, 3000)
+      })
+
+      await Promise.race([probe, timeout])
+
+      if (requestId === reachabilityRequestId.current) {
+        setIsServerReachable(true)
+      }
+    } catch {
+      if (requestId === reachabilityRequestId.current) {
+        setIsServerReachable(false)
+      }
+    } finally {
+      if (requestId === reachabilityRequestId.current) {
+        setIsCheckingReachability(false)
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    void checkReachability()
+
+    function handleOffline() {
+      setIsServerReachable(false)
+      setIsCheckingReachability(false)
+    }
+
+    function handleOnline() {
+      void checkReachability()
+    }
+
+    window.addEventListener("offline", handleOffline)
+    window.addEventListener("online", handleOnline)
+
+    return () => {
+      window.removeEventListener("offline", handleOffline)
+      window.removeEventListener("online", handleOnline)
+      reachabilityRequestId.current += 1
+    }
+  }, [checkReachability])
+
+  const isServerUnreachable = !isCheckingReachability && !isServerReachable
 
   async function handleSubmit(formData: FormData) {
     setError(null)
+
+    if (isServerUnreachable) {
+      setError("Server is unreachable at the moment")
+      return
+    }
+
     setIsLoading(true)
 
     try {
@@ -40,8 +113,12 @@ export function SignInForm({ redirectTo }: SignInFormProps) {
         return
       }
 
+      setIsServerReachable(true)
       router.push(safeRedirectTo)
       router.refresh()
+    } catch {
+      setIsServerReachable(false)
+      setError("Server is unreachable at the moment")
     } finally {
       setIsLoading(false)
     }
@@ -72,9 +149,26 @@ export function SignInForm({ redirectTo }: SignInFormProps) {
 
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? "Signing in..." : "Sign in"}
-          </Button>
+          <TooltipProvider>
+            <Tooltip open={isServerUnreachable ? undefined : false}>
+              <TooltipTrigger asChild>
+                <div className="w-full" tabIndex={isServerUnreachable ? 0 : -1}>
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={isLoading || isCheckingReachability || isServerUnreachable}
+                  >
+                    {isLoading ? "Signing in..." : "Sign in"}
+                  </Button>
+                </div>
+              </TooltipTrigger>
+              {isServerUnreachable ? (
+                <TooltipContent>
+                  Server is unreachable at the moment
+                </TooltipContent>
+              ) : null}
+            </Tooltip>
+          </TooltipProvider>
         </form>
 
         <p className="mt-4 text-sm text-muted-foreground">
